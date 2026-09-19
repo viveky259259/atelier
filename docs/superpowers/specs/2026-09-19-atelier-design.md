@@ -102,6 +102,20 @@ Enforced by `validate_markup` before anything reaches Paper:
 - Exact values come from `get_jsx` / `get_computed_styles` / `get_tokens` — **never**
   read sizes or colors from screenshots.
 
+### 4.6 No motion, no variants
+
+Probed across all 34 tools: there is **no** animation, transition, keyframe, easing, or
+hover primitive, and **no variant primitive**. `video`/`duration` appear only in `export`
+(Paper can export an MP4 of what it renders natively; an agent cannot author motion
+through MCP).
+
+Two consequences:
+
+1. Motion is not authorable. It exists only as **duration/easing tokens** plus prose that
+   rides to handoff. It is therefore not a seat.
+2. Component states are not properties. The disabled state of a button is **another node**,
+   produced by `duplicate_nodes` + `update_styles`. State design is composition work.
+
 ## 5. Architecture
 
 ```
@@ -156,11 +170,14 @@ permitted to touch.
 |---|---|---|
 | **Strategist** | Requirement interrogation, JTBD, IA, success criteria, screen inventory | *none* — works with Paper closed |
 | **Visual Director** | 3 divergent directions, tone, signature element, explicit rejection of defaults | `get_font_family_info` |
-| **Design Systems** | Palette, type scale, spacing → real Paper tokens in contract order | `create_tokens`, `get_tokens`, `set_tokens` |
-| **Interaction & Motion** | States (empty/loading/error/success), flows, focus order, motion specs | *(plans writes; caller executes)* |
+| **Design Systems** | **Mints the vocabulary.** Palette, type scale, spacing, radius, elevation, and motion tokens — in contract order. Sole writer to the token store | `create_tokens`, `get_tokens`, `set_tokens` |
+| **Composition & States** | **Spends the vocabulary.** Flex decomposition, layer naming, ordered write plan, every component state as real nodes, focus order. Annotates motion for handoff | *(plans writes; caller executes)* |
 | **Critic** | Rubric scoring, WCAG contrast, tap targets, responsive tiers → posts comment threads | `get_screenshot`, `get_computed_styles`, comment tools |
 | **Handoff Engineer** | Idiomatic code per target, token export *(Slice 2)* | `get_jsx`, `get_computed_styles`, `get_tokens` |
 | **Design Head** | Stage gating, convergence, conflict resolution | session state machine |
+
+**Boundary test.** If a seat calls `create_tokens`, it is Design Systems. If it plans node
+writes, it is Composition & States. There is no third case.
 
 ## 7. Tool surface
 
@@ -201,7 +218,7 @@ permitted to touch.
 
 ```
 DISCOVERY ──▶ DIRECTION ──▶ SYSTEM ──▶ MATERIALIZE ──▶ CRITIQUE ──▶ CONVERGED
-  (Strategist) (Vis. Dir.)  (Systems)  (Interaction)    (Critic)
+  (Strategist) (Vis. Dir.)  (Systems)  (Composition)    (Critic)
                                           ▲                │
                                           └── refine ◀─────┘
                                        (mutation only, §4.2)

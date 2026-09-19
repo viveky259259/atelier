@@ -109,6 +109,15 @@ hover primitive, and **no variant primitive**. `video`/`duration` appear only in
 (Paper can export an MP4 of what it renders natively; an agent cannot author motion
 through MCP).
 
+Validated a second time against Paper's own authoritative `paper-mcp-instructions` guide
+(18,603 chars): `transition`, `animat`, `motion`, `keyframe`, `easing`, `hover`, `duration`,
+`variant`, `interactiv` and `prototyp` each occur **zero** times. The single `state`
+occurrence refers to semantic *colour* states (success/warning/error), not interaction
+states. Two independent authoritative sources agree.
+
+**Rejected:** relying on CSS `transition`/`animation` surviving `write_html`. Undocumented,
+invisible on canvas, free to change in any release. We do not build on unspecified passthrough.
+
 Two consequences:
 
 1. Motion is not authorable. It exists only as **duration/easing tokens** plus prose that
@@ -210,6 +219,11 @@ writes, it is Composition & States. There is no third case.
 - `sync_feedback({sessionId})` — pulls open threads (human **and** agent) back into the
   session; resolves threads whose findings are addressed.
 
+**Motion**
+- `specify_motion({sessionId, from, to, trigger, durationToken, easingToken, notes})` —
+  records one transition edge in the motion graph (§10.2).
+- `get_motion_graph({sessionId})` — the full edge set, for review and handoff.
+
 **Ship** *(Slice 2)*
 - `handoff({sessionId, nodeId, target})` — React / Vue / Flutter / SwiftUI / Compose +
   token file.
@@ -240,7 +254,50 @@ DISCOVERY ──▶ DIRECTION ──▶ SYSTEM ──▶ MATERIALIZE ──▶ C
 6. A human replying on the canvas enters the same loop — this is the mechanism behind
    "becomes a design team for any product."
 
-## 10. Failure modes
+## 10. Motion
+
+Per §4.6, Paper has no motion concept at all. Motion is therefore the canonical case for the
+§5.1 ownership rule: **Paper owns what it can express; Atelier owns what Paper cannot.**
+
+### 10.1 Three-part model
+
+1. **Motion tokens** — Design Systems mints `--motion-*` duration and easing tokens via
+   `create_tokens`. Real Paper tokens, so they survive `get_tokens` to handoff verbatim and
+   stay consistent with the rest of the vocabulary.
+2. **States as nodes** — Composition & States builds each state (rest, hover, pressed,
+   disabled, loading) as a real node via `duplicate_nodes` + `update_styles`, per §4.6.
+   The Critic screenshots and scores each.
+3. **Transition edges** — Atelier process state (§10.2).
+
+### 10.2 The motion graph
+
+A directed graph over real Paper node IDs. Node IDs reference Paper (truth); the edges are
+Atelier's, because Paper has no primitive for them. Edges are re-verified via `find_nodes`
+on session resume like any other node reference (§5.2).
+
+Handoff walks the graph and emits per target:
+
+| Target | Emission |
+|---|---|
+| CSS / Tailwind | `transition-property` / `duration` / `timing-function` from the tokens |
+| React / Framer Motion | `variants` map, one entry per state node; edge becomes `transition` |
+| SwiftUI | `withAnimation(.timingCurve(…))` between view states |
+| Flutter | `AnimatedContainer` / `AnimationController`, matched curve + duration |
+| Compose | `animate*AsState` with a tokenised `tween` |
+
+### 10.3 Critic rubric additions
+
+- Every interactive component has a state set — at minimum rest, focus, disabled.
+- Every edge references motion *tokens*, never literal values.
+- No orphan states: every non-rest state is reachable by at least one edge.
+
+### 10.4 Out of scope for Slice 1
+
+Motion **preview**. Watching a sequence play requires rendering outside Paper (a derived HTML
+preview — Slice 4). Slice 1 specifies motion completely and hands it off correctly. It does
+not animate it.
+
+## 11. Failure modes
 
 | Failure | Handling |
 |---|---|
@@ -251,7 +308,7 @@ DISCOVERY ──▶ DIRECTION ──▶ SYSTEM ──▶ MATERIALIZE ──▶ C
 | Rubric never converges | round cap → return best round + unresolved findings, do not loop forever |
 | Caller ignores `validate_markup` | Critic catches it downstream as a finding |
 
-## 11. Testing
+## 12. Testing
 
 - **TDD throughout.** Tests precede implementation.
 - **Record/replay fake** of `paper-desktop` built from real captured responses (already
@@ -259,7 +316,7 @@ DISCOVERY ──▶ DIRECTION ──▶ SYSTEM ──▶ MATERIALIZE ──▶ C
 - Live integration tests against running Paper behind an env flag.
 - Rubric tests use fixture screenshots with known violations.
 
-## 12. Build order
+## 13. Build order
 
 **Slice 1 (this spec):** conductor core, session state machine, seats 1–5, token
 establishment, materialisation planning + validation, **and the critique loop**.
@@ -269,13 +326,13 @@ Outcome: a requirement goes in; a tokenised, critiqued, hand-built design exists
 **Slice 3:** server-side fan-out for parallel direction generation.
 **Slice 4:** multi-file / multi-project memory; design-system reuse across consults.
 
-## 13. Stack
+## 14. Stack
 
 TypeScript, official MCP SDK (`@modelcontextprotocol/sdk`), SQLite for session state,
 Vitest for tests. Distributed as a local MCP server added via
 `claude mcp add atelier --scope user`.
 
-## 14. Open questions
+## 15. Open questions
 
 1. **Direction divergence without materialisation.** Visual Director proposes 3
    directions, but they cannot be *seen* without building them in Paper — which is

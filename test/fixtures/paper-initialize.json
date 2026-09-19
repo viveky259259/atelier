@@ -1,0 +1,15 @@
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+    "protocolVersion": "2025-06-18",
+    "capabilities": {
+      "tools": {}
+    },
+    "serverInfo": {
+      "name": "paper-desktop",
+      "version": "0.5.8"
+    },
+    "instructions": "Paper is a professional design tool for creating user interfaces. The user is working on a 2D canvas composing designs.\nThe Paper MCP server gives you tools to be a talented designer for web and mobile apps and websites. You can read designs from the user's file, see what the user is doing, and write HTML back into the design as new nodes.\n\nYou MUST load the full guide before other Paper tools: get_guide({ topic: \"paper-mcp-instructions\" }). Do this once per session; call again if a long thread may have dropped guide text.\n\n- Call get_basic_info when starting on a file to learn artboards and dimensions; use get_selection to see user focus. Omit fileId to use the file the user is looking at, or call list_files to find another.\n- pageId defaults to the page the user is viewing; pass it to work on another page without disrupting them. You can't switch their page.\n- Typography: you MUST call get_font_family_info before your first typographic styling in a session. Prefer font families listed in get_basic_info unless the user specifies otherwise. Use px for font sizes, em for letter-spacing, px for line-height.\n- New designs: before writing HTML, generate a brief (palette, type scale, spacing, direction) unless given a design system.\n- Creating/editing: each write_html call should add roughly one visual group; prefer duplicate_nodes with update_styles and set_text_content when faster than rewriting HTML.\n- Quality: use get_screenshot to review after meaningful changes. Artboard height is a starting point \u2014 when content clips set height: \"fit-content\" via update_styles rather than guessing a fixed height.\n- Repeated rows (lists, nav): use fixed-width slots for icons and trailing actions (flexShrink: 0); gap alone won't align columns across rows.\n- When done creating or editing, you MUST call finish_working_on_nodes.\n- Never show raw node IDs to the user.\n- Export to the user's codebase: use get_jsx, get_computed_styles, get_fill_image, etc. for exact values \u2014 never read sizes or colors from screenshots."
+  }
+}

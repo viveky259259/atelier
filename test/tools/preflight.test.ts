@@ -21,6 +21,19 @@ describe("preflight", () => {
       "capabilities",
       "guide-loaded",
     ]);
+    expect(result.checks[1]?.detail).toContain("Fixture File");
+  });
+
+  it("reports Paper's own error when the guide cannot be loaded", async () => {
+    fake = await startFakePaper({ failGuide: true });
+    client = new PaperClient({ url: fake.url });
+    const result = await preflight(client);
+
+    expect(result.ok).toBe(false);
+    const guide = result.checks.find((c) => c.name === "guide-loaded");
+    expect(guide?.ok).toBe(false);
+    expect(guide?.detail).toContain("guide unavailable");
+    expect(result.remediation.join(" ")).toMatch(/could not return its guide/i);
   });
 
   it("fails with remediation when Paper is not running", async () => {

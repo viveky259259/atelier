@@ -14,11 +14,25 @@ const fixtures = join(here, "..", "fixtures");
 
 const toolsFixture = JSON.parse(
   readFileSync(join(fixtures, "paper-tools-list.json"), "utf8"),
-) as { result: { tools: Array<{ name: string }> } };
+) as { result: { tools: Array<{ name: string; inputSchema?: { properties?: object } }> } };
 
 const guideText = readFileSync(join(fixtures, "paper-guide.md"), "utf8");
 
+// Shape captured from paper-desktop 0.5.11, values synthetic: block 0 is the file
+// header every file-scoped tool returns, block 1 is the tool's own payload.
+const basicInfoFixture = JSON.parse(
+  readFileSync(join(fixtures, "paper-get-basic-info.json"), "utf8"),
+) as { result: { content: [{ text: string }, { text: string }] } };
+const [headerBlock, basicInfoBlock] = basicInfoFixture.result.content;
+
 export const PAPER_TOOL_NAMES: string[] = toolsFixture.result.tools.map((t) => t.name);
+
+// A tool is file-scoped when its captured schema accepts a fileId.
+const FILE_SCOPED = new Set(
+  toolsFixture.result.tools
+    .filter((t) => t.inputSchema?.properties !== undefined && "fileId" in t.inputSchema.properties)
+    .map((t) => t.name),
+);
 
 export interface FakeCall { name: string; args: Record<string, unknown>; }
 
@@ -34,18 +48,13 @@ export interface FakePaper {
   close(): Promise<void>;
 }
 
-const DEFAULT_BASIC_INFO = {
-  fileName: "Fixture File",
-  fileId: "file-fixture-1",
-  pageName: "Page 1",
-  nodeCount: 12,
-  artboards: [{ name: "Home", width: 1440, height: 1024 }],
-};
+const text = (t: string) => ({ type: "text" as const, text: t });
 
 export async function startFakePaper(opts: FakePaperOptions = {}): Promise<FakePaper> {
   const calls: FakeCall[] = [];
   const names = opts.toolNames ?? PAPER_TOOL_NAMES;
-  const basicInfo = opts.basicInfo ?? DEFAULT_BASIC_INFO;
+  const basicInfoText =
+    opts.basicInfo === undefined ? basicInfoBlock.text : JSON.stringify(opts.basicInfo, null, 2);
 
   const known = new Set(names);
 
@@ -71,13 +80,14 @@ export async function startFakePaper(opts: FakePaperOptions = {}): Promise<FakeP
       if (!known.has(name)) throw new Error(`unknown tool ${name}`);
       calls.push({ name, args });
       if (name === "get_guide") {
-        if (opts.failGuide) throw new Error("guide unavailable");
-        return { content: [{ type: "text" as const, text: guideText }] };
+        // Real Paper reports tool failures as an isError result, not a protocol error.
+        if (opts.failGuide) return { isError: true, content: [text("guide unavailable")] };
+        return { content: [text(guideText)] };
       }
-      if (name === "get_basic_info") {
-        return { content: [{ type: "text" as const, text: JSON.stringify(basicInfo) }] };
-      }
-      return { content: [{ type: "text" as const, text: "{}" }] };
+      const body = name === "get_basic_info" ? basicInfoText : "{}";
+      return {
+        content: FILE_SCOPED.has(name) ? [text(headerBlock.text), text(body)] : [text(body)],
+      };
     });
 
     return mcp;

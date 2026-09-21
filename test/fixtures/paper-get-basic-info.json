@@ -1,0 +1,16 @@
+{
+  "jsonrpc": "2.0",
+  "id": 3,
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\n  \"file\": {\n    \"id\": \"01FIXTUREFILE0000000000001\",\n    \"name\": \"Fixture File\"\n  },\n  \"contentHash\": {\n    \"tokens\": \"0a1b2c3d\"\n  }\n}"
+      },
+      {
+        "type": "text",
+        "text": "{\n  \"fileName\": \"Fixture File\",\n  \"pageName\": \"Page 1\",\n  \"pageId\": \"p-1-0\",\n  \"url\": \"https://app.paper.design/file/01FIXTUREFILE0000000000001/p-1-0\",\n  \"rootNodeId\": \"page_root_p-1-0\",\n  \"nodeCount\": 12,\n  \"artboardCount\": 2,\n  \"artboards\": [\n    {\n      \"id\": \"1A-0\",\n      \"name\": \"Home\",\n      \"childCount\": 3,\n      \"width\": 1440,\n      \"height\": 1024,\n      \"worldX\": 0,\n      \"worldY\": 0\n    },\n    {\n      \"id\": \"2B-0\",\n      \"name\": \"Settings\",\n      \"childCount\": 2,\n      \"width\": 1440,\n      \"height\": 1024,\n      \"worldX\": 1540,\n      \"worldY\": 0\n    }\n  ],\n  \"pages\": [\n    {\n      \"id\": \"1-1\",\n      \"name\": \"Page 1\",\n      \"isActive\": true\n    },\n    {\n      \"id\": \"1-2\",\n      \"name\": \"Page 2\",\n      \"isActive\": false\n    }\n  ],\n  \"fontFamilies\": [\n    \"Inter\"\n  ],\n  \"tokens\": {\n    \"items\": [\n      {\n        \"name\": \"--color-neutral-50\",\n        \"value\": \"#fafafa\"\n      },\n      {\n        \"name\": \"--color-primary-500\",\n        \"value\": \"#3b5bdb\"\n      },\n      {\n        \"name\": \"--space-4\",\n        \"value\": \"16px\"\n      }\n    ]\n  }\n}"
+      }
+    ]
+  }
+}

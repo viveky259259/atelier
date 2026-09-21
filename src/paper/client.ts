@@ -16,6 +16,46 @@ export class PaperUnavailableError extends Error {
   }
 }
 
+/** Paper reported a tool failure (an isError result), e.g. invalid arguments. */
+export class PaperToolError extends Error {
+  constructor(readonly tool: string, detail: string) {
+    super(`Paper tool ${tool} failed: ${detail}`);
+    this.name = "PaperToolError";
+  }
+}
+
+/** Sent ahead of every file-scoped result; contentHash changes when tokens are edited. */
+export interface PaperFileHeader {
+  file: { id: string; name: string };
+  contentHash: { tokens: string };
+}
+
+export interface FileScopedResult<T> { header: PaperFileHeader; body: T; }
+
+function parseJson<T>(tool: string, text: string): T {
+  try {
+    return JSON.parse(text) as T;
+  } catch (err) {
+    throw new Error(`Paper tool ${tool} did not return JSON: ${text.slice(0, 120)}`, {
+      cause: err,
+    });
+  }
+}
+
+function parseHeader(tool: string, text: string): PaperFileHeader {
+  const raw = parseJson<{
+    file?: { id?: unknown; name?: unknown };
+    contentHash?: { tokens?: unknown };
+  }>(tool, text);
+  const id = raw.file?.id;
+  const name = raw.file?.name;
+  const tokens = raw.contentHash?.tokens;
+  if (typeof id !== "string" || typeof name !== "string" || typeof tokens !== "string") {
+    throw new Error(`Paper tool ${tool} returned no file header: ${text.slice(0, 120)}`);
+  }
+  return { file: { id, name }, contentHash: { tokens } };
+}
+
 export interface PaperClientOptions { url?: string; }
 
 export class PaperClient {
@@ -56,23 +96,49 @@ export class PaperClient {
   }
 
   async callText(name: string, args: Record<string, unknown> = {}): Promise<string> {
-    const result = await this.raw.callTool({ name, arguments: args });
-    const blocks = (result.content ?? []) as Array<{ type: string; text?: string }>;
-    return blocks
-      .filter((b) => b.type === "text" && typeof b.text === "string")
-      .map((b) => b.text as string)
-      .join("");
+    return (await this.#textBlocks(name, args)).join("");
   }
 
+  /** For tools that return one JSON document. File-scoped tools need callFileScoped. */
   async callJson<T>(name: string, args: Record<string, unknown> = {}): Promise<T> {
-    const text = await this.callText(name, args);
-    try {
-      return JSON.parse(text) as T;
-    } catch (err) {
-      throw new Error(`Paper tool ${name} did not return JSON: ${text.slice(0, 120)}`, {
-        cause: err,
-      });
+    const blocks = await this.#textBlocks(name, args);
+    const [only] = blocks;
+    if (blocks.length !== 1 || only === undefined) {
+      throw new Error(
+        `Paper tool ${name} returned ${blocks.length} content blocks; ` +
+          "file-scoped tools must be read with callFileScoped",
+      );
     }
+    return parseJson<T>(name, only);
+  }
+
+  /**
+   * Every file-scoped tool (any that accepts fileId) answers with two JSON blocks:
+   * a file header, then the tool's own payload.
+   */
+  async callFileScoped<T>(
+    name: string,
+    args: Record<string, unknown> = {},
+  ): Promise<FileScopedResult<T>> {
+    const blocks = await this.#textBlocks(name, args);
+    const [headerText, bodyText] = blocks;
+    if (blocks.length !== 2 || headerText === undefined || bodyText === undefined) {
+      throw new Error(
+        `Paper tool ${name} returned ${blocks.length} content blocks; ` +
+          "expected a file header and a payload",
+      );
+    }
+    return { header: parseHeader(name, headerText), body: parseJson<T>(name, bodyText) };
+  }
+
+  async #textBlocks(name: string, args: Record<string, unknown>): Promise<string[]> {
+    const result = await this.raw.callTool({ name, arguments: args });
+    const blocks = ((result.content ?? []) as Array<{ type: string; text?: string }>)
+      .filter((b) => b.type === "text" && typeof b.text === "string")
+      .map((b) => b.text as string);
+    // Paper reports tool failures in-band; never hand the error text back as data.
+    if (result.isError === true) throw new PaperToolError(name, blocks.join("\n"));
+    return blocks;
   }
 
   private get raw(): Client {

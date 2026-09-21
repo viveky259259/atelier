@@ -31,12 +31,12 @@ export async function preflight(client: PaperClient): Promise<PreflightResult> {
   }
 
   try {
-    const info = await client.callJson<{ fileName?: string; fileId?: string }>("get_basic_info");
-    const ok = typeof info.fileId === "string" && info.fileId.length > 0;
+    const { header } = await client.callFileScoped<unknown>("get_basic_info");
+    const ok = header.file.id.length > 0;
     checks.push({
       name: "file-open",
       ok,
-      detail: ok ? `file "${info.fileName ?? "untitled"}" is open` : "no file open",
+      detail: ok ? `file "${header.file.name || "untitled"}" is open` : "no file open",
     });
     if (!ok) remediation.push("Open a file in Paper — the MCP server needs an open document.");
   } catch (err) {
@@ -70,7 +70,7 @@ export async function preflight(client: PaperClient): Promise<PreflightResult> {
     if (!ok) remediation.push("Paper returned an empty guide; restart the Paper desktop app.");
   } catch (err) {
     checks.push({ name: "guide-loaded", ok: false, detail: String(err) });
-    remediation.push("Paper returned an empty guide; restart the Paper desktop app.");
+    remediation.push("Paper could not return its guide; restart the Paper desktop app.");
   }
 
   return { ok: checks.every((c) => c.ok), checks, remediation };

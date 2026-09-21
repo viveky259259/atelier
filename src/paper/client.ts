@@ -50,8 +50,32 @@ export class PaperClient {
     this.#client = undefined;
   }
 
-  /** @internal — Task 4 builds on this. */
-  protected get raw(): Client {
+  async listToolNames(): Promise<string[]> {
+    const { tools } = await this.raw.listTools();
+    return tools.map((t) => t.name);
+  }
+
+  async callText(name: string, args: Record<string, unknown> = {}): Promise<string> {
+    const result = await this.raw.callTool({ name, arguments: args });
+    const blocks = (result.content ?? []) as Array<{ type: string; text?: string }>;
+    return blocks
+      .filter((b) => b.type === "text" && typeof b.text === "string")
+      .map((b) => b.text as string)
+      .join("");
+  }
+
+  async callJson<T>(name: string, args: Record<string, unknown> = {}): Promise<T> {
+    const text = await this.callText(name, args);
+    try {
+      return JSON.parse(text) as T;
+    } catch (err) {
+      throw new Error(`Paper tool ${name} did not return JSON: ${text.slice(0, 120)}`, {
+        cause: err,
+      });
+    }
+  }
+
+  private get raw(): Client {
     if (this.#client === undefined) throw new PaperUnavailableError(this.url);
     return this.#client;
   }

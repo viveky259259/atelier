@@ -71,7 +71,7 @@ Copied verbatim from the spec. Every task's requirements implicitly include thes
     "target": "ES2023",
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
-    "rootDir": ".",
+    "rootDir": "src",
     "outDir": "dist",
     "strict": true,
     "noUncheckedIndexedAccess": true,
@@ -112,6 +112,31 @@ dist/
 
 Run: `npm install`
 Expected: completes without native build steps (`node:sqlite` is built in).
+
+Then verify every MCP SDK export this plan relies on actually exists in the installed version:
+
+```bash
+node --input-type=module -e "
+const need = {
+  '@modelcontextprotocol/sdk/server/mcp.js': ['McpServer'],
+  '@modelcontextprotocol/sdk/server/index.js': ['Server'],
+  '@modelcontextprotocol/sdk/server/stdio.js': ['StdioServerTransport'],
+  '@modelcontextprotocol/sdk/server/streamableHttp.js': ['StreamableHTTPServerTransport'],
+  '@modelcontextprotocol/sdk/client/index.js': ['Client'],
+  '@modelcontextprotocol/sdk/client/streamableHttp.js': ['StreamableHTTPClientTransport'],
+  '@modelcontextprotocol/sdk/inMemory.js': ['InMemoryTransport'],
+  '@modelcontextprotocol/sdk/types.js': ['ListToolsRequestSchema', 'CallToolRequestSchema'],
+};
+for (const [path, names] of Object.entries(need)) {
+  const m = await import(path);
+  for (const n of names) if (!(n in m)) throw new Error(path + ' is missing ' + n);
+}
+console.log('SDK exports OK');
+"
+```
+
+Expected: `SDK exports OK`. **If any export is missing, STOP.** The SDK API has moved since this
+plan was written; report which export is missing rather than guessing at a replacement.
 
 - [ ] **Step 6: Write the failing test**
 
@@ -1068,19 +1093,23 @@ export async function preflight(client: PaperClient): Promise<PreflightResult> {
     remediation.push("Open a file in Paper — the MCP server needs an open document.");
   }
 
-  const names = await client.listToolNames();
-  const caps = probeCapabilities(names);
-  const missing = caps.missing();
-  checks.push({
-    name: "capabilities",
-    ok: missing.length === 0,
-    detail:
-      missing.length === 0
-        ? `${names.length} tools available`
-        : `missing required tools: ${missing.join(", ")}`,
-  });
-  if (missing.length > 0) {
-    remediation.push(`Update Paper — this version is missing: ${missing.join(", ")}.`);
+  try {
+    const names = await client.listToolNames();
+    const missing = probeCapabilities(names).missing();
+    checks.push({
+      name: "capabilities",
+      ok: missing.length === 0,
+      detail:
+        missing.length === 0
+          ? `${names.length} tools available`
+          : `missing required tools: ${missing.join(", ")}`,
+    });
+    if (missing.length > 0) {
+      remediation.push(`Update Paper — this version is missing: ${missing.join(", ")}.`);
+    }
+  } catch (err) {
+    checks.push({ name: "capabilities", ok: false, detail: String(err) });
+    remediation.push("Paper stopped responding mid-check; restart the Paper desktop app.");
   }
 
   try {

@@ -1,7 +1,7 @@
 # Atelier — An Agentic Design Team as an MCP Server
 
 **Status:** Design spec, Slice 1
-**Date:** 2026-09-19
+**Date:** 2026-09-19 (revised 2026-09-23: §4 re-verified on v0.5.12, new §4.7)
 **Author:** Design Head (orchestrator) + 6 specialist seats
 
 ---
@@ -33,10 +33,10 @@ design artifact.
 - **Not** a Paper wrapper. We do not proxy Paper's tools. Callers use Paper MCP directly.
 - **Not** a hosted service. Local only, single user, no auth. *(Slice 4+ may revisit.)*
 
-## 4. Verified constraints (from live `paper-desktop` v0.5.8)
+## 4. Verified constraints (from live `paper-desktop`: probed on v0.5.8, re-verified on v0.5.12)
 
 These were probed against the running server, not taken from documentation. The public
-docs describe 24 tools; the live server exposes **34**.
+docs describe 24 tools; the live server exposes **34** (unchanged through v0.5.12).
 
 ### 4.1 Structure creation
 
@@ -91,6 +91,11 @@ Enforced by `validate_markup` before anything reaches Paper:
 - Colors: **semantic before palette**; within those, neutral → primary → secondary → accent.
 - All other types: **smallest value first**.
 - Aliasing via `var(--other-token)`.
+- Token types (v0.5.12): `breakpoint`, `color`, `container`, `fontFamily`, `fontSize`,
+  `fontWeight`, `letterSpacing`, `lineHeight`, `opacity`, `radius`, `spacing`. `opacity` arrived
+  in v0.5.12; its values are a 0–1 number or a percent string. The guide adjusts a colour
+  token's opacity with `color-mix(var(--color-x) 40%, transparent)`, optionally with an opacity
+  token in place of the percentage.
 
 ### 4.5 Session protocol
 
@@ -101,6 +106,13 @@ Enforced by `validate_markup` before anything reaches Paper:
 - Raw node IDs are never shown to the user.
 - Exact values come from `get_jsx` / `get_computed_styles` / `get_tokens` — **never**
   read sizes or colors from screenshots.
+- `fileId` is **required** by 28 of the 34 tools. Only `get_basic_info` and `get_selection`
+  accept it as optional, and `list_files`, `create_file`, `get_font_family_info` and
+  `get_guide` don't take it. Take it from the `get_basic_info` file header (§4.7) and pass it
+  explicitly.
+- Check every file header. If `file.id` is not the intended file, stop and pass the right
+  `fileId`. If `contentHash.tokens` changed since the last token read, tokens were edited
+  outside the session: re-read with `get_tokens` before relying on token names or values.
 
 ### 4.6 No motion, no variants
 
@@ -124,6 +136,18 @@ Two consequences:
    rides to handoff. It is therefore not a seat.
 2. Component states are not properties. The disabled state of a button is **another node**,
    produced by `duplicate_nodes` + `update_styles`. State design is composition work.
+
+### 4.7 Response envelope
+
+Probed on v0.5.11 and v0.5.12; the guide documents it under "Use file headers to verify".
+
+- Every **file-scoped** tool (any that accepts `fileId`) returns **two** JSON text blocks: a
+  file header `{ file: { id, name }, contentHash: { tokens } }`, then the tool's own payload.
+  They are separate JSON documents and must be parsed separately; joined, they are not JSON.
+- Tools that are not file-scoped return a single block. `get_guide` returns prose.
+- Tool failures, such as a missing required argument, come back **in-band**: a normal result
+  with `isError: true` and an explanatory text block, not a protocol error. They must never
+  be treated as data.
 
 ## 5. Architecture
 
@@ -305,14 +329,19 @@ not animate it.
 | No file open | `preflight` offers `create_file` |
 | Node IDs stale on resume | re-resolve via `find_nodes` against semantic-name map |
 | Paper version drift | capability probe via `tools/list` at startup; degrade on missing tools |
+| Paper tool error (`isError` result) | raised as a typed error; reported as a failed check or finding, never read as data |
+| Tokens edited outside the session | the file header's `contentHash.tokens` changes; re-read with `get_tokens` (Paper wins, §5.1) |
 | Rubric never converges | round cap → return best round + unresolved findings, do not loop forever |
 | Caller ignores `validate_markup` | Critic catches it downstream as a finding |
 
 ## 12. Testing
 
 - **TDD throughout.** Tests precede implementation.
-- **Record/replay fake** of `paper-desktop` built from real captured responses (already
-  captured: `initialize`, `tools/list` with full schemas).
+- **Record/replay fake** of `paper-desktop` built from real captured responses (captured
+  from v0.5.12: `initialize`, `tools/list` with full schemas, and the `paper-mcp-instructions`
+  guide; plus the two-block `get_basic_info` response with synthetic values). The fake
+  reproduces the file header on file-scoped tools and in-band `isError` failures. Before code
+  depends on another tool's payload, capture that tool's real response the same way.
 - Live integration tests against running Paper behind an env flag.
 - Rubric tests use fixture screenshots with known violations.
 
@@ -328,8 +357,8 @@ Outcome: a requirement goes in; a tokenised, critiqued, hand-built design exists
 
 ## 14. Stack
 
-TypeScript, official MCP SDK (`@modelcontextprotocol/sdk`), SQLite for session state,
-Vitest for tests. Distributed as a local MCP server added via
+TypeScript, official MCP SDK (`@modelcontextprotocol/sdk`), SQLite for session state
+(Node's built-in `node:sqlite`, so Node ≥ 22.13), Vitest for tests. Distributed as a local MCP server added via
 `claude mcp add atelier --scope user`.
 
 ## 15. Open questions

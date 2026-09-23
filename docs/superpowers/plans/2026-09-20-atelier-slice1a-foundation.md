@@ -34,6 +34,12 @@ below now match the committed code.
 Also: live Paper is now `paper-desktop 0.5.11`. The fixtures were captured at 0.5.8, and the tool
 surface is unchanged at 34 tools. Task 3's expected count was a typo (4 tests, not 3).
 
+**Update 2026-09-23.** The fixtures were re-captured at `paper-desktop 0.5.12`. It has the same
+34 tools, and `get_tokens`/`create_tokens` gain an `opacity` token type. The fake now reads its
+server identity from `paper-initialize.json`. Tooling moved to Vitest 5 (clearing a dev-only
+advisory), `engines.node` is `>=22.13.0`, and `fsevents`' install script is denied (it ships
+prebuilt). The spec gained §4.7 (response envelope); the constraints below follow it.
+
 ## Global Constraints
 
 Copied verbatim from the spec. Every task's requirements implicitly include these.
@@ -42,10 +48,11 @@ Copied verbatim from the spec. Every task's requirements implicitly include thes
 - **No proxying (§5):** Atelier never proxies Paper's write tools. It plans and validates; the caller executes writes against Paper directly.
 - **Node identity (§4.2):** `write_html` is used once per node at genesis; every refinement mutates in place. Never regenerate a node that has comment threads attached.
 - **HTML subset (§4.3):** inline styles only; forbidden — `margin`, `display: inline`, `display: grid`, HTML tables; layout is flex + padding + gap exclusively; `border-box` everywhere.
-- **Token order (§4.4):** colours semantic before palette, neutral → primary → secondary → accent; all other types smallest value first; aliasing via `var(--other-token)`.
-- **Session protocol (§4.5):** `get_guide({topic:"paper-mcp-instructions"})` once per session before other Paper tools; `get_font_family_info` before first typographic styling; `finish_working_on_nodes` when a write sequence completes; **never show raw node IDs to the user**; exact values come from `get_jsx`/`get_computed_styles`/`get_tokens`, **never** from screenshots.
+- **Token order (§4.4):** colours semantic before palette, neutral → primary → secondary → accent; all other types smallest value first; aliasing via `var(--other-token)`. Token types as of 0.5.12 include `opacity` (0–1 number or percent string).
+- **Session protocol (§4.5):** `get_guide({topic:"paper-mcp-instructions"})` once per session before other Paper tools; `get_font_family_info` before first typographic styling; `finish_working_on_nodes` when a write sequence completes; **never show raw node IDs to the user**; exact values come from `get_jsx`/`get_computed_styles`/`get_tokens`, **never** from screenshots; pass `fileId` explicitly (28 tools require it); check each file header's `file.id`, and re-read tokens when `contentHash.tokens` changes.
+- **Response envelope (§4.7):** file-scoped tools return a file-header block, then a payload block, parsed separately; `isError` results are failures, never data.
 - **No motion primitives (§4.6):** Paper has no transition/animation/easing/hover/variant concept. Never emit CSS `transition`/`animation` into `write_html`.
-- **Paper endpoint:** `http://127.0.0.1:29979/mcp`; server identifies as `paper-desktop`, probed at version `0.5.8`.
+- **Paper endpoint:** `http://127.0.0.1:29979/mcp`; server identifies as `paper-desktop`, probed at `0.5.8`, re-verified at `0.5.12` (fixtures captured at `0.5.12`).
 
 ---
 
@@ -68,7 +75,9 @@ Copied verbatim from the spec. Every task's requirements implicitly include thes
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "bin": { "atelier": "./dist/index.js" },
+  "bin": {
+    "atelier": "./dist/index.js"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "test": "vitest run",
@@ -82,7 +91,13 @@ Copied verbatim from the spec. Every task's requirements implicitly include thes
   "devDependencies": {
     "@types/node": "^24.0.0",
     "typescript": "^5.7.0",
-    "vitest": "^3.0.0"
+    "vitest": "^5.0.1"
+  },
+  "allowScripts": {
+    "fsevents": false
+  },
+  "engines": {
+    "node": ">=22.13.0"
   }
 }
 ```
@@ -366,6 +381,12 @@ const toolsFixture = JSON.parse(
 
 const guideText = readFileSync(join(fixtures, "paper-guide.md"), "utf8");
 
+const serverInfo = (
+  JSON.parse(readFileSync(join(fixtures, "paper-initialize.json"), "utf8")) as {
+    result: { serverInfo: { name: string; version: string } };
+  }
+).result.serverInfo;
+
 // Shape captured from paper-desktop 0.5.11, values synthetic: block 0 is the file
 // header every file-scoped tool returns, block 1 is the tool's own payload.
 const basicInfoFixture = JSON.parse(
@@ -410,7 +431,7 @@ export async function startFakePaper(opts: FakePaperOptions = {}): Promise<FakeP
   // strip tool arguments, so recorded calls would lose their args.
   const buildServer = (): Server => {
     const mcp = new Server(
-      { name: "paper-desktop", version: "0.5.8" },
+      { name: serverInfo.name, version: serverInfo.version },
       { capabilities: { tools: {} } },
     );
 
@@ -559,7 +580,7 @@ describe("PaperClient", () => {
     const info = await client.connect();
 
     expect(info.name).toBe("paper-desktop");
-    expect(info.version).toBe("0.5.8");
+    expect(info.version).toBe("0.5.12");
     expect(client.connected).toBe(true);
   });
 

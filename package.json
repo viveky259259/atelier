@@ -3,7 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "bin": { "atelier": "./dist/index.js" },
+  "bin": {
+    "atelier": "./dist/index.js"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "test": "vitest run",
@@ -17,6 +19,12 @@
   "devDependencies": {
     "@types/node": "^24.0.0",
     "typescript": "^5.7.0",
-    "vitest": "^3.0.0"
+    "vitest": "^5.0.1"
+  },
+  "allowScripts": {
+    "fsevents": false
+  },
+  "engines": {
+    "node": ">=22.13.0"
   }
 }

@@ -18,6 +18,12 @@ const toolsFixture = JSON.parse(
 
 const guideText = readFileSync(join(fixtures, "paper-guide.md"), "utf8");
 
+const serverInfo = (
+  JSON.parse(readFileSync(join(fixtures, "paper-initialize.json"), "utf8")) as {
+    result: { serverInfo: { name: string; version: string } };
+  }
+).result.serverInfo;
+
 // Shape captured from paper-desktop 0.5.11, values synthetic: block 0 is the file
 // header every file-scoped tool returns, block 1 is the tool's own payload.
 const basicInfoFixture = JSON.parse(
@@ -62,7 +68,7 @@ export async function startFakePaper(opts: FakePaperOptions = {}): Promise<FakeP
   // strip tool arguments, so recorded calls would lose their args.
   const buildServer = (): Server => {
     const mcp = new Server(
-      { name: "paper-desktop", version: "0.5.8" },
+      { name: serverInfo.name, version: serverInfo.version },
       { capabilities: { tools: {} } },
     );
 

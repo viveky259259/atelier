@@ -19,7 +19,7 @@ describe("PaperClient", () => {
     const info = await client.connect();
 
     expect(info.name).toBe("paper-desktop");
-    expect(info.version).toBe("0.5.8");
+    expect(info.version).toBe("0.5.12");
     expect(client.connected).toBe(true);
   });
 

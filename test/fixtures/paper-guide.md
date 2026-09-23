@@ -112,15 +112,19 @@ The human sees your work appear on the canvas in real-time. Tool calls have no l
 
 2.1 **Generating new design tokens**: If asked to generate a design token set follow the Tailwind v4 theme format below EXACTLY unless otherwise specified. Define a minimal set of tokens that cover all of those namespaces even if you think they won't be immediately used. Remember, design tokens are the foundation.
 
-  --font-*: Font family names.
   --color-*: Colors for text, backgrounds, etc.
-  --breakpoint-*: Breakpoint widths for responsive design.
-  --container-*: Container sizes.
-  --text-*: Font sizes for text styles.
+  --breakpoint-*: Breakpoint widths for responsive design (use them for top-level frames)
+  --spacing-*: Space tokens (for padding, gap, width, height, etc.)
+  --container-*: Container sizes (for width, height).
+  --opacity-*: Opacity percentages, e.g. 40%
+  --font-*: Font family names.
   --font-weight-*: Font weight for text styles.
+  --text-*: Font sizes for text styles.
   --tracking-*: Letter spacing for text. Prefer em units.
   --leading-*: Arbitrary line height for text. Prefer px.
   --radius-*: Corner radius.
+
+2.2 **Adjusting color token opacity**: You can reduce the opacity of a color token using the following syntax: `color-mix(var(--color-primary) 40%, transparent)` or, if using opacity tokens, `color-mix(var(--color-primary) var(--opacity-muted), transparent)`. The percentage multiplies the color’s own opacity.
 
 3. **Check selection**: Use get_selection to see what the user is focused on. If nothing is selected, you might suggest they select something or work with a specific artboard.
 

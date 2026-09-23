@@ -1584,7 +1584,7 @@ Expected: PASS (1 test)
 Run: `npx vitest run && npm run typecheck && npm run build`
 Expected: all tests PASS, no type errors, `dist/index.js` produced
 
-- [ ] **Step 7: Manual verification against real Paper**
+- [x] **Step 7: Manual verification against real Paper**
 
 Open the Paper desktop app with a file open. Then drive the built binary over stdio, exactly as an
 MCP host would. This needs no change to any Claude Code config:
@@ -1653,9 +1653,10 @@ These belong to later plans and must **not** be built here:
 - [x] `npx vitest run` passes (27 tests across 8 files)
 - [x] `npm run typecheck` clean under `strict` + `noUncheckedIndexedAccess`
 - [x] `npm run build` produces `dist/index.js`
-- [ ] `preflight` verified manually against real Paper, both running and quit
+- [x] `preflight` verified manually against real Paper, both running and quit
   - running: passed 2026-09-21 on paper-desktop 0.5.11 (`ok: true`, four passing checks, empty stderr)
-  - quit: not yet run
+  - quit: passed 2026-09-23 (`ok: false`, `paper-reachable` alone, the documented remediation, empty
+    stderr, and a normal tool result rather than a protocol error)
 - [x] No module outside `src/paper/` imports the MCP SDK client
 - [x] No module outside `src/paper/` parses Paper content blocks
 - [x] Nothing in `src/session/` stores design data (Global Constraints, §5.1)
